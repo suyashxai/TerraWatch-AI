@@ -176,7 +176,9 @@ def run_inference(model, tensor: torch.Tensor, device: torch.device) -> np.ndarr
     """
     tensor = tensor.to(device)
 
-    with torch.no_grad():
+    # torch.inference_mode is a strict superset of no_grad: it additionally
+    # disables version tracking on tensors, saving memory and ~10% time.
+    with torch.inference_mode():
         output = model(tensor)
 
     # TerraTorch ModelOutput has an .output attribute; unwrap as needed
