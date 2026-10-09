@@ -93,6 +93,8 @@ def _get_output_dir(requested: str) -> str:
 # ---------------------------------------------------------------------------
 
 def run_pipeline(tiff_path: str, output_dir: str = "outputs") -> Dict[str, Any]:
+    import os
+    os.makedirs(output_dir, exist_ok=True)
     """
     Full burn-scar detection pipeline.
 
