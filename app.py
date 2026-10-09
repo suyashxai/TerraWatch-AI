@@ -284,25 +284,19 @@ if uploaded_file is not None:
             st.success("✅ Valid 6-band GeoTIFF detected — ready for inference.")
             _valid_upload = True
 
-            import tempfile
-import os
+            # Create a temporary GeoTIFF in the system temp directory
+            with tempfile.NamedTemporaryFile(
+                suffix=".tif",
+                delete=False,
+                dir=tempfile.gettempdir()
+            ) as tmp:
+                tmp.write(file_bytes)
+                tmp.flush()
+                temp_path = tmp.name
 
-# Create a temporary GeoTIFF in the system temp directory
-with tempfile.NamedTemporaryFile(
-    suffix=".tif",
-    delete=False,
-    dir=tempfile.gettempdir()
-) as tmp:
-    tmp.write(file_bytes)
-    tmp.flush()
-    temp_path = tmp.name
+            logger.info("Uploaded file saved to temp path: %s", temp_path)
 
-logger.info("Uploaded file saved to temp path: %s", temp_path)
-
-st.session_state.tmp_path = temp_path
-st.session_state.file_bytes = file_bytes
-
-            st.session_state.tmp_path    = tmp.name
+            st.session_state.tmp_path    = temp_path
             st.session_state.file_bytes  = file_bytes
             st.session_state.upload_meta = {
                 "filename": uploaded_file.name,
