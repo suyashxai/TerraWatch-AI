@@ -284,9 +284,12 @@ if uploaded_file is not None:
             st.success("✅ Valid 6-band GeoTIFF detected — ready for inference.")
             _valid_upload = True
 
-            tmp = tempfile.NamedTemporaryFile(suffix=".tif", delete=False, dir="outputs")
+            # Use the system temp directory so this works on Streamlit Cloud
+            # (the "outputs/" folder may not exist or may be read-only there).
+            tmp = tempfile.NamedTemporaryFile(suffix=".tif", delete=False)
             tmp.write(file_bytes)
             tmp.flush(); tmp.close()
+            logger.info("Uploaded file saved to temp path: %s", tmp.name)
 
             st.session_state.tmp_path    = tmp.name
             st.session_state.file_bytes  = file_bytes
@@ -577,10 +580,12 @@ it directly measures how accurately the model identifies burned pixels.
 
     if gt_file is not None:
         gt_bytes = gt_file.read()
+        # Use system temp dir — same reason as upload temp file above
         gt_tmp = tempfile.NamedTemporaryFile(
-            suffix=Path(gt_file.name).suffix, delete=False, dir="outputs"
+            suffix=Path(gt_file.name).suffix, delete=False
         )
         gt_tmp.write(gt_bytes); gt_tmp.flush(); gt_tmp.close()
+        logger.info("Ground-truth file saved to temp path: %s", gt_tmp.name)
         st.session_state.gt_tmp_path = gt_tmp.name
 
         if st.button("▶️ Run Evaluation", key="run_eval"):
