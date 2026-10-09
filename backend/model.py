@@ -51,6 +51,32 @@ def _get_model():
 # Main pipeline
 # ---------------------------------------------------------------------------
 
+def _get_output_dir(requested: str) -> str:
+    """
+    Return a writable output directory.
+
+    Tries the requested path first. If it cannot be created or written to
+    (e.g. read-only filesystem on Streamlit Cloud), falls back to the
+    system temp directory so the application never raises FileNotFoundError
+    or PermissionError during deployment.
+    """
+    import tempfile as _tempfile
+    try:
+        os.makedirs(requested, exist_ok=True)
+        # Quick write test
+        _probe = os.path.join(requested, ".write_test")
+        with open(_probe, "w") as _f:
+            _f.write("")
+        os.remove(_probe)
+        return requested
+    except (OSError, PermissionError):
+        logger.warning(
+            "Output directory '%s' is not writable — falling back to system temp dir.",
+            requested,
+        )
+        return _tempfile.gettempdir()
+
+
 def run_pipeline(tiff_path: str, output_dir: str = "outputs") -> Dict[str, Any]:
     """
     Full burn-scar detection pipeline.
@@ -58,7 +84,8 @@ def run_pipeline(tiff_path: str, output_dir: str = "outputs") -> Dict[str, Any]:
     Parameters
     ----------
     tiff_path  : path to the uploaded 6-band HLS GeoTIFF
-    output_dir : directory where artefacts (mask, overlay) are written
+    output_dir : preferred directory for artefacts (mask GeoTIFF, overlay PNG).
+                 Falls back to the system temp dir if not writable.
 
     Returns
     -------
@@ -71,7 +98,7 @@ def run_pipeline(tiff_path: str, output_dir: str = "outputs") -> Dict[str, Any]:
         overlay_path     – str, path to saved overlay PNG
         meta             – dict of image metadata
     """
-    os.makedirs(output_dir, exist_ok=True)
+    output_dir = _get_output_dir(output_dir)
 
     # 1. Read
     data, meta = read_geotiff(tiff_path)
