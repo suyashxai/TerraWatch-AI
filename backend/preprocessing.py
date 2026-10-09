@@ -20,26 +20,11 @@ from typing import Tuple, Dict, Any
 import torch
 
 
-# Per-band normalization statistics taken directly from burn_scars_config.yaml
-# (ibm-nasa-geospatial/Prithvi-EO-2.0-300M-BurnScars).
-# The model was trained on float32 reflectance in the range ~0–1
-# (NOT raw DN × 10000).
-BAND_MEANS = [
-    0.033349706741586264,
-    0.05701185520536176,
-    0.05889748132001316,
-    0.2323245113436119,
-    0.1972854853760658,
-    0.11944914225186566,
-]
-BAND_STDS = [
-    0.02269135568823774,
-    0.026807560223070237,
-    0.04004109844362779,
-    0.07791732423672691,
-    0.08708738838140137,
-    0.07241979477437814,
-]
+# Per-band normalization statistics used in the official Prithvi-BurnScars
+# fine-tuning configuration (mean / std over the HLS training corpus).
+# Source: burn_scars_config.yaml from ibm-nasa-geospatial/Prithvi-EO-2.0-300M-BurnScars
+BAND_MEANS = [494.905781, 815.239594, 924.335066, 2968.881459, 2634.621962, 1739.579917]
+BAND_STDS  = [284.925432, 357.84876,  575.566823, 896.601013,  951.900334,  921.407808]
 
 EXPECTED_BANDS = 6
 
@@ -108,11 +93,7 @@ def validate_bands(data: np.ndarray) -> None:
 
 def normalize(data: np.ndarray) -> np.ndarray:
     """
-    Apply per-band z-score normalization using the statistics from
-    burn_scars_config.yaml (float32 reflectance scale, range ~0–1).
-
-    If the input appears to be raw HLS DN (values >> 1), it is divided by
-    10000 first so the normalization is always applied in the correct domain.
+    Apply per-band z-score normalization using Prithvi training statistics.
 
     Parameters
     ----------
@@ -122,16 +103,9 @@ def normalize(data: np.ndarray) -> np.ndarray:
     -------
     normalized : np.ndarray  shape (6, H, W), float32
     """
-    working = data.astype(np.float32)
-    # Detect raw DN: if 99th-percentile of non-zero pixels > 2.0 the data
-    # is almost certainly in the DN scale (typical values 100–8000).
-    nonzero = working[working > 0]
-    if nonzero.size > 0 and float(np.percentile(nonzero, 99)) > 2.0:
-        working = working / 10000.0
-
-    out = np.empty_like(working, dtype=np.float32)
+    out = np.empty_like(data, dtype=np.float32)
     for i, (mean, std) in enumerate(zip(BAND_MEANS, BAND_STDS)):
-        out[i] = (working[i] - mean) / (std + 1e-8)
+        out[i] = (data[i] - mean) / (std + 1e-8)
     return out
 
 
