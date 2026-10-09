@@ -284,12 +284,23 @@ if uploaded_file is not None:
             st.success("✅ Valid 6-band GeoTIFF detected — ready for inference.")
             _valid_upload = True
 
-            # Use the system temp directory so this works on Streamlit Cloud
-            # (the "outputs/" folder may not exist or may be read-only there).
-            tmp = tempfile.NamedTemporaryFile(suffix=".tif", delete=False)
-            tmp.write(file_bytes)
-            tmp.flush(); tmp.close()
-            logger.info("Uploaded file saved to temp path: %s", tmp.name)
+            import tempfile
+import os
+
+# Create a temporary GeoTIFF in the system temp directory
+with tempfile.NamedTemporaryFile(
+    suffix=".tif",
+    delete=False,
+    dir=tempfile.gettempdir()
+) as tmp:
+    tmp.write(file_bytes)
+    tmp.flush()
+    temp_path = tmp.name
+
+logger.info("Uploaded file saved to temp path: %s", temp_path)
+
+st.session_state.tmp_path = temp_path
+st.session_state.file_bytes = file_bytes
 
             st.session_state.tmp_path    = tmp.name
             st.session_state.file_bytes  = file_bytes
