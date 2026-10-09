@@ -133,7 +133,13 @@ def load_model(device: Optional[torch.device] = None):
 
     # Load checkpoint
     logger.info("Loading weights from %s on %s", weights_path, device)
-    checkpoint = torch.load(str(weights_path), map_location=device, weights_only=False)
+   
+    checkpoint = torch.load(
+     str(weights_path),
+     map_location="cpu",
+     weights_only=False,
+     mmap=True,
+  )
 
     # Checkpoints may be wrapped under 'state_dict'
     state_dict = checkpoint.get("state_dict", checkpoint)
