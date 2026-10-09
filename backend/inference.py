@@ -28,10 +28,13 @@ warnings.filterwarnings("ignore", category=FutureWarning, module="torch")
 
 logger = logging.getLogger(__name__)
 
-MODELS_DIR  = Path(__file__).resolve().parent.parent / "models"
-LOCAL_WEIGHTS = MODELS_DIR / "Prithvi_EO_V2_300M_BurnScars.pt"
-HF_REPO_ID  = "ibm-nasa-geospatial/Prithvi-EO-2.0-300M-BurnScars"
+MODELS_DIR       = Path(__file__).resolve().parent.parent / "models"
+LOCAL_WEIGHTS    = MODELS_DIR / "Prithvi_EO_V2_300M_BurnScars.pt"
+HF_REPO_ID       = "ibm-nasa-geospatial/Prithvi-EO-2.0-300M-BurnScars"
 WEIGHTS_FILENAME = "Prithvi_EO_V2_300M_BurnScars.pt"
+
+logger.debug("MODELS_DIR resolved to: %s  (exists=%s)", MODELS_DIR, MODELS_DIR.exists())
+logger.debug("LOCAL_WEIGHTS path: %s  (exists=%s)", LOCAL_WEIGHTS, LOCAL_WEIGHTS.exists())
 
 
 # ---------------------------------------------------------------------------
@@ -51,10 +54,34 @@ def weights_available() -> bool:
 # ---------------------------------------------------------------------------
 
 def _ensure_weights() -> Path:
-    """Return path to weights file, downloading from HF if necessary."""
+    """
+    Return a path to the weights file.
+
+    Resolution order:
+    1. models/Prithvi_EO_V2_300M_BurnScars.pt  (committed or manually placed)
+    2. HF hub cache (already-downloaded, avoids redundant network calls)
+    3. Fresh download from Hugging Face Hub
+    """
+    # 1. Preferred: file committed into the repo / placed in models/
     if LOCAL_WEIGHTS.exists():
+        logger.info("Using local weights: %s", LOCAL_WEIGHTS)
         return LOCAL_WEIGHTS
-    logger.info("Weights not found locally — downloading from Hugging Face…")
+
+    # 2. Check the HF hub cache without hitting the network
+    try:
+        from huggingface_hub import try_to_load_from_cache  # type: ignore
+        cached = try_to_load_from_cache(
+            repo_id=HF_REPO_ID,
+            filename=WEIGHTS_FILENAME,
+        )
+        if cached and Path(cached).exists():
+            logger.info("Using HF-cached weights: %s", cached)
+            return Path(cached)
+    except Exception:
+        pass  # function may not exist in older huggingface_hub versions
+
+    # 3. Download (first run on a fresh environment)
+    logger.info("Weights not found locally — downloading from Hugging Face...")
     from huggingface_hub import hf_hub_download  # type: ignore
     path = hf_hub_download(
         repo_id=HF_REPO_ID,
