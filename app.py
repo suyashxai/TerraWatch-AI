@@ -284,31 +284,41 @@ if uploaded_file is not None:
             st.success("✅ Valid 6-band GeoTIFF detected — ready for inference.")
             _valid_upload = True
 
-            # Create a temporary GeoTIFF in the system temp directory
-            with tempfile.NamedTemporaryFile(
-                suffix=".tif",
-                delete=False,
-                dir=tempfile.gettempdir()
-            ) as tmp:
-                tmp.write(file_bytes)
-                tmp.flush()
-                temp_path = tmp.name
+            # Only write a new temp file when the uploaded filename has changed.
+            # Streamlit reruns the whole script on every interaction, so without
+            # this guard we would create a new orphaned temp file on every rerun.
+            _prev_meta = st.session_state.get("upload_meta") or {}
+            _is_new_file = (_prev_meta.get("filename") != uploaded_file.name)
 
-            logger.info("Uploaded file saved to temp path: %s", temp_path)
+            if _is_new_file:
+                # Create a temporary GeoTIFF in the system temp directory
+                with tempfile.NamedTemporaryFile(
+                    suffix=".tif",
+                    delete=False,
+                    dir=tempfile.gettempdir()
+                ) as tmp:
+                    tmp.write(file_bytes)
+                    tmp.flush()
+                    temp_path = tmp.name
 
-            st.session_state.tmp_path    = temp_path
-            st.session_state.file_bytes  = file_bytes
-            st.session_state.upload_meta = {
-                "filename": uploaded_file.name,
-                "width": width, "height": height, "count": count,
-                "pw": pw, "ph": ph, "nodata": nodata,
-            }
-            st.session_state.crs_obj         = crs
-            st.session_state.bounds_obj      = bounds
-            st.session_state.crs_info_cache  = parse_crs_info(crs)
-            # Reset results on new upload
-            st.session_state.result          = None
-            st.session_state.eval_metrics    = None
+                logger.info("Uploaded file saved to temp path: %s", temp_path)
+
+                st.session_state.tmp_path    = temp_path
+                st.session_state.file_bytes  = file_bytes
+                st.session_state.upload_meta = {
+                    "filename": uploaded_file.name,
+                    "width": width, "height": height, "count": count,
+                    "pw": pw, "ph": ph, "nodata": nodata,
+                }
+                st.session_state.crs_obj         = crs
+                st.session_state.bounds_obj      = bounds
+                st.session_state.crs_info_cache  = parse_crs_info(crs)
+                # Reset results when a genuinely new file is uploaded
+                st.session_state.result          = None
+                st.session_state.eval_metrics    = None
+            else:
+                # Same file — reuse what is already in session state
+                file_bytes = st.session_state.file_bytes
 
     except Exception as exc:
         st.error(
